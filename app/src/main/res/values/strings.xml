@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">PhotoMap</string>
+    <string name="title_activity_maps">Map</string>
+    <string name="title_activity_screen_slide_pager">ScreenSlidePager</string>
+    <string name="photo">Take photo</string>
+    <string name="video">Record video</string>
+    <string name="all">See all pictures and videos</string>
+    <string name="delete">Delete</string>
+
+    <string name="ok">OK</string>
+    <string name="permission_available_location">Location Permissions has been granted.</string>
+    <string name="permissions_not_granted">Permissions were not granted.</string>
+    <string name="permission_location_rationale">Location permissions are needed to get user location.</string>
+</resources>
