@@ -26,7 +26,10 @@ public class ScreenSlidePagerActivity extends FragmentActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Fabric.with(this, new Answers(), new Crashlytics());
+        Fabric.with(new Fabric.Builder(this)
+                .kits(new Crashlytics(), new Answers())
+                .debuggable(true)
+                .build());
         setContentView(R.layout.activity_screenslidepager);
 
         mPageDatabase = new PageDatabase(this);
