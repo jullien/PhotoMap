@@ -106,9 +106,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         all.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(getApplicationContext(),ScreenSlidePagerActivity.class);
+                ArrayList<Page> pageArrayList = mPageDatabase.getAllPages();
 
-                startActivity(intent);
+                if (!pageArrayList.isEmpty()) {
+                    Intent intent = new Intent(getApplicationContext(), ScreenSlidePagerActivity.class);
+
+                    startActivity(intent);
+                }
             }
         });
     }
