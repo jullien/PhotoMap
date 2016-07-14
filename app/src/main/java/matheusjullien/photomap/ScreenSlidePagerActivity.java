@@ -17,11 +17,8 @@ import java.util.ArrayList;
 import io.fabric.sdk.android.Fabric;
 
 public class ScreenSlidePagerActivity extends FragmentActivity {
-    private PageDatabase mPageDatabase;
-    private LatLng mLatLng;
     private ArrayList<Page> pageArrayList;
     private ViewPager mPager;
-    private PagerAdapter mPagerAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,13 +29,13 @@ public class ScreenSlidePagerActivity extends FragmentActivity {
                 .build());
         setContentView(R.layout.activity_screenslidepager);
 
-        mPageDatabase = new PageDatabase(this);
+        PageDatabase mPageDatabase = new PageDatabase(this);
         mPageDatabase.open();
 
         Bundle bundle = getIntent().getParcelableExtra("bundle");
 
         if (bundle != null) {
-            mLatLng = bundle.getParcelable("pageLatLng");
+            LatLng mLatLng = bundle.getParcelable("pageLatLng");
 
             pageArrayList = mPageDatabase.getPagesByLatLng(mLatLng);
         } else {
@@ -46,7 +43,7 @@ public class ScreenSlidePagerActivity extends FragmentActivity {
         }
 
         mPager = (ViewPager) findViewById(R.id.pager);
-        mPagerAdapter = new ScreenSlidePagerAdapter(getSupportFragmentManager());
+        PagerAdapter mPagerAdapter = new ScreenSlidePagerAdapter(getSupportFragmentManager());
         mPager.setAdapter(mPagerAdapter);
     }
 

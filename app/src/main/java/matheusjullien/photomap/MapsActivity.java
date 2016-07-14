@@ -1,6 +1,7 @@
 package matheusjullien.photomap;
 
 import android.Manifest;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -9,11 +10,14 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
+import android.support.v7.app.AlertDialog;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -45,6 +49,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final int REQUEST_LOCATION = 0;
     private static String[] PERMISSIONS_LOCATION = {Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION};
 
+    private static final int REQUEST_WRITE_STORAGE = 1;
+    private static String[] PERMISSIONS_WRITE_STORAGE = {Manifest.permission.WRITE_EXTERNAL_STORAGE};
+
     private static final int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 100;
     private static final int CAPTURE_VIDEO_ACTIVITY_REQUEST_CODE = 200;
 
@@ -52,15 +59,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public static final int MEDIA_TYPE_VIDEO = 2;
 
     private LinearLayout root;
-    private Button photo, video, all;
-    private SupportMapFragment mapFragment;
+    private Button photo, video;
     private GoogleMap mMap;
     private GoogleApiClient mGoogleApiClient;
     private Location mLastLocation;
     private Uri fileUri;
-    private Page mPage;
     private PageDatabase mPageDatabase;
     private String timeStamp;
+    private int type;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,8 +83,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         root = (LinearLayout) findViewById(R.id.root);
         photo = (Button) findViewById(R.id.photo);
         video = (Button) findViewById(R.id.video);
-        all = (Button) findViewById(R.id.all);
-        mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
+        Button all = (Button) findViewById(R.id.all);
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
         buildGoogleApiClient();
@@ -86,15 +92,35 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         photo.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                fileUri = getOutputMediaFileUri(MEDIA_TYPE_IMAGE);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                            != PackageManager.PERMISSION_GRANTED) {
+                        type = MEDIA_TYPE_IMAGE;
 
-                if (fileUri != null) {
-                    Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                    intent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
+                        requestWriteExternalPermission();
+                    } else {
+                        fileUri = getOutputMediaFileUri(MEDIA_TYPE_IMAGE);
 
-                    startActivityForResult(intent, CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE);
+                        if (fileUri != null) {
+                            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                            intent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
+
+                            startActivityForResult(intent, CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE);
+                        } else {
+                            // Create file failed, advise user
+                        }
+                    }
                 } else {
-                    // Create file failed, advise user
+                    fileUri = getOutputMediaFileUri(MEDIA_TYPE_IMAGE);
+
+                    if (fileUri != null) {
+                        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                        intent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
+
+                        startActivityForResult(intent, CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE);
+                    } else {
+                        // Create file failed, advise user
+                    }
                 }
             }
         });
@@ -102,13 +128,35 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         video.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                fileUri = getOutputMediaFileUri(MEDIA_TYPE_VIDEO);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                            != PackageManager.PERMISSION_GRANTED) {
+                        type = MEDIA_TYPE_VIDEO;
 
-                if (fileUri != null) {
-                    Intent intent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
-                    intent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
+                        requestWriteExternalPermission();
+                    } else {
+                        fileUri = getOutputMediaFileUri(MEDIA_TYPE_VIDEO);
 
-                    startActivityForResult(intent, CAPTURE_VIDEO_ACTIVITY_REQUEST_CODE);
+                        if (fileUri != null) {
+                            Intent intent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+                            intent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
+
+                            startActivityForResult(intent, CAPTURE_VIDEO_ACTIVITY_REQUEST_CODE);
+                        } else {
+                            // Create file failed, advise user
+                        }
+                    }
+                } else {
+                    fileUri = getOutputMediaFileUri(MEDIA_TYPE_VIDEO);
+
+                    if (fileUri != null) {
+                        Intent intent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+                        intent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
+
+                        startActivityForResult(intent, CAPTURE_VIDEO_ACTIVITY_REQUEST_CODE);
+                    } else {
+                        // Create file failed, advise user
+                    }
                 }
             }
         });
@@ -122,6 +170,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     Intent intent = new Intent(getApplicationContext(), ScreenSlidePagerActivity.class);
 
                     startActivity(intent);
+                } else {
+                    // No files saved, advise user
                 }
             }
         });
@@ -204,12 +254,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (resultCode == RESULT_OK && fileUri != null) {
                 galleryAdd(fileUri);
 
-                mPage = new Page();
+                Page mPage = new Page();
                 mPage.setPath(fileUri.toString());
-                mPage.setLatitude(mLastLocation.getLatitude());
-                mPage.setLongitude(mLastLocation.getLongitude());
                 mPage.setDate(timeStamp);
                 mPage.setType("image");
+
+                if (mLastLocation != null) {
+                    mPage.setLatitude(mLastLocation.getLatitude());
+                    mPage.setLongitude(mLastLocation.getLongitude());
+                }
 
                 mPageDatabase.insertPage(mPage);
 
@@ -225,12 +278,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (resultCode == RESULT_OK && fileUri != null) {
                 galleryAdd(fileUri);
 
-                mPage = new Page();
+                Page mPage = new Page();
                 mPage.setPath(fileUri.toString());
-                mPage.setLatitude(mLastLocation.getLatitude());
-                mPage.setLongitude(mLastLocation.getLongitude());
                 mPage.setDate(timeStamp);
                 mPage.setType("video");
+
+                if (mLastLocation != null) {
+                    mPage.setLatitude(mLastLocation.getLatitude());
+                    mPage.setLongitude(mLastLocation.getLongitude());
+                }
 
                 mPageDatabase.insertPage(mPage);
 
@@ -295,19 +351,27 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 requestLocationPermissions();
             } else {
+                if (!isLocationEnabled()) {
+                    createAlertBuilder();
+                } else {
+                    mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+                    mMap.setMyLocationEnabled(true);
+
+                    if (mLastLocation != null) {
+                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()), 12));
+                    }
+                }
+            }
+        } else {
+            if (!isLocationEnabled()) {
+                createAlertBuilder();
+            } else {
                 mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
                 mMap.setMyLocationEnabled(true);
 
                 if (mLastLocation != null) {
                     mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()), 12));
                 }
-            }
-        } else {
-            mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-            mMap.setMyLocationEnabled(true);
-
-            if (mLastLocation != null) {
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()), 12));
             }
         }
     }
@@ -318,8 +382,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-    }
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {}
 
     private void requestLocationPermissions() {
         if (ActivityCompat.shouldShowRequestPermissionRationale(this,
@@ -340,6 +403,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
+    private void requestWriteExternalPermission() {
+        if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+
+            Snackbar.make(root, R.string.permission_write_storage_rationale, Snackbar.LENGTH_INDEFINITE)
+                    .setAction(R.string.ok, new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            ActivityCompat.requestPermissions(MapsActivity.this, PERMISSIONS_WRITE_STORAGE, REQUEST_WRITE_STORAGE);
+                        }
+                    })
+                    .show();
+        } else {
+            ActivityCompat.requestPermissions(this, PERMISSIONS_WRITE_STORAGE, REQUEST_WRITE_STORAGE);
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == REQUEST_LOCATION) {
@@ -347,6 +427,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Snackbar.make(root, R.string.permission_available_location, Snackbar.LENGTH_SHORT).show();
 
                 mGoogleApiClient.connect();
+            } else {
+                Snackbar.make(root, R.string.permissions_not_granted, Snackbar.LENGTH_SHORT).show();
+            }
+        } else if (requestCode == REQUEST_WRITE_STORAGE) {
+            if (verifyPermissions(grantResults)) {
+                Snackbar.make(root, R.string.permission_available_write_storage, Snackbar.LENGTH_SHORT).show();
+
+                if (type == MEDIA_TYPE_IMAGE) {
+                    photo.performClick();
+                } else if (type == MEDIA_TYPE_VIDEO) {
+                    video.performClick();
+                }
             } else {
                 Snackbar.make(root, R.string.permissions_not_granted, Snackbar.LENGTH_SHORT).show();
             }
@@ -367,5 +459,48 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         return true;
+    }
+
+    private boolean isLocationEnabled() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            try {
+                int locationMode = Settings.Secure.getInt(getApplicationContext().getContentResolver(), Settings.Secure.LOCATION_MODE);
+
+                if (locationMode != Settings.Secure.LOCATION_MODE_OFF && locationMode != Settings.Secure.LOCATION_MODE_SENSORS_ONLY) {
+                    return true;
+                } else {
+                    return false;
+                }
+            } catch (Settings.SettingNotFoundException e) {
+                e.printStackTrace();
+
+                return false;
+            }
+        } else {
+            @SuppressWarnings("deprecation")
+            String locationProviders = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
+
+            return !TextUtils.isEmpty(locationProviders);
+        }
+    }
+
+    private void createAlertBuilder() {
+        AlertDialog.Builder mBuilder = new AlertDialog.Builder(this);
+        mBuilder.setCancelable(false);
+        mBuilder.setTitle("Location services disabled");
+        mBuilder.setMessage("PhotoMap needs access to location services to get user location");
+        mBuilder.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+            }
+        });
+        mBuilder.setNegativeButton("Ignore", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                dialog.cancel();
+            }
+        });
+
+        AlertDialog mAlert = mBuilder.create();
+        mAlert.show();
     }
 }

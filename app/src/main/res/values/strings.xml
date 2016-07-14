@@ -9,6 +9,8 @@
 
     <string name="ok">OK</string>
     <string name="permission_available_location">Location Permissions has been granted.</string>
-    <string name="permissions_not_granted">Permissions were not granted.</string>
     <string name="permission_location_rationale">Location permissions are needed to get user location.</string>
+    <string name="permission_available_write_storage">Write External Storage Permission has been granted.</string>
+    <string name="permission_write_storage_rationale">Write external storage permission are needed to save file.</string>
+    <string name="permissions_not_granted">Permissions were not granted.</string>
 </resources>
